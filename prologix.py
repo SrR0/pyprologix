@@ -1,6 +1,7 @@
 import serial
 import datetime
 import os
+import time
 
 class prologix(object):
     """Class for handling prologix protocol based GPIB communication
@@ -25,7 +26,7 @@ class prologix(object):
     timeout: float = 2.5
     EOL: str = "\n"
 
-    def __init__(self, port: str, baud: int=921600, timeout: float=2.5, debug: bool=False):
+    def __init__(self, port: str, baud: int=115200, timeout: float=2.5, debug: bool=False):
         """
 
         Parameters
@@ -59,12 +60,13 @@ class prologix(object):
             return None
 
         #Check for Prologix device
+        time.sleep(2.5)
         check = self.cmdPoll("++ver", read=False)
         if len(check)<=0:
             print("!! No responding device on port " + port + " found")
             self.serial = None
             return None
-        elif not "Prologix".casefold() in check.casefold():
+        elif not ("Prologix".casefold() in check.casefold() or "AR488".casefold() in check.casefold()):
             print("!! Device on Port " + port + " does not seem to be Prologix compatible")
             print(check)
             self.serial = None
@@ -98,6 +100,7 @@ class prologix(object):
             we're sure noone else is using the bus to reduce bus load.
             """
             self.cmdWrite("++addr " + str(addr), addr=None)
+        self.serial.read()
         self.serial.write(str.encode(cmd+self.EOL))
         if self.debug:
             print(">> " + cmd)

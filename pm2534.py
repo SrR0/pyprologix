@@ -3,39 +3,40 @@ from dataclasses import dataclass
 from time import sleep
 import datetime
 
-class hp3478a(object):
-    """Control HP3478A multimeters using a Prologix compatible dongle
+
+class pm2534(object):
+    """Control Philips/Fluke PM2534 multimeters using a Prologix or a AR488 compatible dongle
 
     Attributes
     ----------
 
     addr : int
         Address of the targeted device
-    gpib : prologix
+    gpib : prologix/ar488
         Prologix object used to communicate with the prologix dongle
-    status : hp3478aStatus
+    status : pm2534Status
         Current device status
     """
 
     addr: int = None
     gpib: prologix = None
 
-    VDC  = 1
-    VAC  = 2
-    Ω2W  = 3
-    Ω4W  = 4
-    ADC  = 5
-    AAC  = 6
-    EXTΩ = 7
+ #   VDC = 1
+ #   VAC = 2
+ #   Ω2W = 3
+ #   Ω4W = 4
+ #   ADC = 5
+ #   AAC = 6
+ #   EXTΩ = 7
 
-    TRIG_INT = 1
-    TRIG_EXT = 2
-    TRIG_SIN = 3
-    TRIG_HLD = 4
-    TRIG_FST = 5
+ #   TRIG_INT = 1
+ #   TRIG_EXT = 2
+ #   TRIG_SIN = 3
+ #   TRIG_HLD = 4
+ #   TRIG_FST = 5
 
     @dataclass
-    class hp3478aStatus:
+    class pm2534Status:
         """Current device status
 
         Attributes
@@ -69,7 +70,7 @@ class hp3478a(object):
             see also: getDigits
         triggerExternal : bool
             External trigger enabled
-        
+
         calRAM : bool
             Cal RAM enabled
         frontProts : bool
@@ -83,7 +84,7 @@ class hp3478a(object):
             Auto-Range is enabled
         triggerInternal : bool
             Internal trigger is enabled. False = Single trigger.
-        
+
         srqPon : bool
             Device asserts SRQ on power-on or Test/Reset/SDC
             Controlled by rear configuration switch 3
@@ -97,7 +98,7 @@ class hp3478a(object):
             Device asserts SRQ if a syntax error occurs
         srqReading : bool
             Device asserts SRQ every time a new reading is available
-        
+
         errADLink: bool
             Error while communicating with aDC
         errADSelfTest: bool
@@ -118,6 +119,8 @@ class hp3478a(object):
         fetched: datetime
             Date and time this status was updated
         """
+        """
+
         function: int = None
         range: int = None
         digits: int = None
@@ -142,9 +145,12 @@ class hp3478a(object):
         errChecksum: bool = None
         dac: int = None
         fetched: datetime = None
-    status = hp3478aStatus()
+    """
 
-    def __init__(self, addr: int, port: str=None, baud: int=115200, timeout: float=0.25, prologixGpib: prologix=None, debug: bool=False):
+    status = pm2534Status()
+
+    def __init__(self, addr: int, port: str = None, baud: int = 115200, timeout: float = 0.25,
+                 prologixGpib: prologix = None, debug: bool = False):
         """
 
         Parameters
@@ -200,7 +206,7 @@ class hp3478a(object):
 
         return float(measurement)
 
-    def getDigits(self, digits: int=None) -> float:
+    def getDigits(self, digits: int = None) -> float:
         """Get a human readable representation of currently used resolution
 
         Parameters
@@ -226,8 +232,8 @@ class hp3478a(object):
         elif digits == 3:
             return 3.5
         return None
-    
-    def getFunction(self, function: int=None) -> str:
+
+    def getFunction(self, function: int = None) -> str:
         """Get a human readable representation of currently used measurement function
 
         Parameters
@@ -269,8 +275,8 @@ class hp3478a(object):
             return "ExtΩ"
         else:
             return None
-    
-    def getRange(self, range: int=None, function: int=None, numeric: bool=False):
+
+    def getRange(self, range: int = None, function: int = None, numeric: bool = False):
         """Get a human readable representation of currently used measurement range
 
         Parameters
@@ -296,7 +302,7 @@ class hp3478a(object):
             range = self.status.range
         if function is None:
             function = self.status.function
-        
+
         if range == 1:
             if function == 1:
                 if numeric:
@@ -409,50 +415,50 @@ class hp3478a(object):
             else:
                 return None
 
-    def getStatus(self) -> hp3478aStatus:
+    def getStatus(self) -> pm2534Status:
         """Read current device status and populate status object
 
         Returns
         -------
-        hp3478aStatus
+        pm2534Status
             Updated status object
         """
         status = self.gpib.cmdPoll("B", self.addr, binary=True)
-        
-        #Update last readout time
+
+        # Update last readout time
         self.status.fetched = datetime.datetime.now()
 
-        #Byte 5: RAW DAC value
+        # Byte 5: RAW DAC value
         self.status.dac = status[4]
 
-        #Byte 4: Error Information
-        self.status.errChecksum     = (status[3]&(1<<0) != 0)
-        self.status.errRAM          = (status[3]&(1<<1) != 0)
-        self.status.errROM          = (status[3]&(1<<2) != 0)
-        self.status.errADSlope      = (status[3]&(1<<3) != 0)
-        self.status.errADSelfTest   = (status[3]&(1<<4) != 0)
-        self.status.errADLink       = (status[3]&(1<<5) != 0)
+        # Byte 4: Error Information
+        self.status.errChecksum = (status[3] & (1 << 0) != 0)
+        self.status.errRAM = (status[3] & (1 << 1) != 0)
+        self.status.errROM = (status[3] & (1 << 2) != 0)
+        self.status.errADSlope = (status[3] & (1 << 3) != 0)
+        self.status.errADSelfTest = (status[3] & (1 << 4) != 0)
+        self.status.errADLink = (status[3] & (1 << 5) != 0)
 
-        #Byte 3: Serial Poll Mask
-        self.status.srqReading      = (status[2]&(1<<0) != 0)
-            #Bit 1 not used
-        self.status.srqSyntaxErr    = (status[2]&(1<<2) != 0)
-        self.status.srqHWErr        = (status[2]&(1<<3) != 0)
-        self.status.srqKbd          = (status[2]&(1<<4) != 0)
-        self.status.srqCalFailed    = (status[2]&(1<<5) != 0)
-            #Bit 6 always zero
-        self.status.srqPon          = (status[2]&(1<<7) != 0)
+        # Byte 3: Serial Poll Mask
+        self.status.srqReading = (status[2] & (1 << 0) != 0)
+        # Bit 1 not used
+        self.status.srqSyntaxErr = (status[2] & (1 << 2) != 0)
+        self.status.srqHWErr = (status[2] & (1 << 3) != 0)
+        self.status.srqKbd = (status[2] & (1 << 4) != 0)
+        self.status.srqCalFailed = (status[2] & (1 << 5) != 0)
+        # Bit 6 always zero
+        self.status.srqPon = (status[2] & (1 << 7) != 0)
 
-        #Byte 2: Status Bits
-        self.status.triggerInternal = (status[1]&(1<<0) != 0)
-        self.status.autoRange       = (status[1]&(1<<1) != 0)
-        self.status.autoZero        = (status[1]&(1<<2) != 0)
-        self.status.freq50Hz        = (status[1]&(1<<3) != 0)
-        self.status.frontPorts      = (status[1]&(1<<4) != 0)
-        self.status.calRAM          = (status[1]&(1<<5) != 0)
-        self.status.triggerExternal = (status[1]&(1<<6) != 0)
+        # Byte 2: Status Bits
+        self.status.triggerInternal = (status[1] & (1 << 0) != 0)
+        self.status.autoRange = (status[1] & (1 << 1) != 0)
+        self.status.autoZero = (status[1] & (1 << 2) != 0)
+        self.status.freq50Hz = (status[1] & (1 << 3) != 0)
+        self.status.frontPorts = (status[1] & (1 << 4) != 0)
+        self.status.calRAM = (status[1] & (1 << 5) != 0)
+        self.status.triggerExternal = (status[1] & (1 << 6) != 0)
 
-        #Byte 1: Function/Range/Digits
+        # Byte 1: Function/Range/Digits
         sb1 = status[0]
         self.status.digits = (sb1 & 0b00000011)
         sb1 = sb1 >> 2
@@ -482,7 +488,7 @@ class hp3478a(object):
         else:
             return None
 
-    def getCalibration(self, filename : str=None) -> bytearray:
+    def getCalibration(self, filename: str = None) -> bytearray:
         """Read device calibration data
 
         Code based on work by
@@ -502,7 +508,7 @@ class hp3478a(object):
         bytearray
             Raw calibration data
         """
-        
+
         self.callReset()
         self.setTrigger(self.TRIG_HLD)
 
@@ -513,14 +519,14 @@ class hp3478a(object):
 
         self.setDisplay("CAL READ 00%")
 
-        p  = 0
+        p = 0
         lp = 0
         cdata = b""
 
         for dbyte in range(0, 255):
-            din = self.gpib.cmdPoll(self.gpib.escapeCmd("W"+chr(dbyte)), binary=True)
+            din = self.gpib.cmdPoll(self.gpib.escapeCmd("W" + chr(dbyte)), binary=True)
             cdata += din
-            p = (int)(dbyte/25.5)
+            p = (int)(dbyte / 25.5)
             if p != lp:
                 self.setDisplay("CAL READ " + str(p) + "0%")
                 lp = p
@@ -540,8 +546,7 @@ class hp3478a(object):
 
         return cdata
 
-
-    def setAutoZero(self, autoZero: bool, noUpdate: bool=False) -> bool:
+    def setAutoZero(self, autoZero: bool, noUpdate: bool = False) -> bool:
         """change Auto-Zero setting
 
         Parameters
@@ -560,7 +565,7 @@ class hp3478a(object):
         setVal = 0
         if autoZero: setVal = 1
 
-        self.gpib.cmdWrite("Z"+str(autoZero), self.addr)
+        self.gpib.cmdWrite("Z" + str(autoZero), self.addr)
 
         if noUpdate:
             if self.gpib.debug:
@@ -569,12 +574,14 @@ class hp3478a(object):
         else:
             self.getStatus()
             if autoZero != self.status.autoZero:
-                print("!! Error while changing AutoZero - tried to set " + str(autoZero) + " but verification was " + str(self.status.autoZero))
+                print(
+                    "!! Error while changing AutoZero - tried to set " + str(autoZero) + " but verification was " + str(
+                        self.status.autoZero))
             elif self.gpib.debug:
                 print(".. AutoZero successfully changed to " + str(self.status.autoZero))
             return self.status.autoZero
 
-    def setDisplay(self, text: str=None, online: bool=True) -> bool:
+    def setDisplay(self, text: str = None, online: bool = True) -> bool:
         """Change device display
 
         Parameters
@@ -583,7 +590,7 @@ class hp3478a(object):
             When text is None or empty device will resume standard display mode
                 as in show measurements
             When text is set it will be displayed on the device
-            
+
             Only ASCII 32-95 are valid. Function aborts for invalid characters
             Must be <= 12 Characters while , and . do not count as character.
                 consecutive , and . may not work
@@ -608,19 +615,19 @@ class hp3478a(object):
             if self.gpib.debug:
                 print("Display reset to standard mode")
             return True
-        
+
         len = 0
         for c in text:
             if ord(c) < 32 or ord(c) > 95:
                 print("!! Character '" + c + "' is not supported")
                 return False
             if c != "," and c != ".":
-                len = len+1
-            
+                len = len + 1
+
             if len > 12:
                 print("!! Text too long; max 12 characters")
                 return False
-            
+
         cmd = "D2"
         dt = ""
         if not online:
@@ -628,14 +635,14 @@ class hp3478a(object):
             dt = " (updates paused)"
 
         self.gpib.cmdWrite(cmd + text, self.addr)
-        
+
         if self.gpib.debug:
             print(".. Display changed to '" + text + "'" + dt)
 
-        #@TODO we could check status/errors to catch syntax errors here
+        # @TODO we could check status/errors to catch syntax errors here
         return True
 
-    def setFunction(self, function : int, noUpdate: bool=False) -> bool:
+    def setFunction(self, function: int, noUpdate: bool = False) -> bool:
         """Change current measurement function
 
         Parameters
@@ -656,22 +663,23 @@ class hp3478a(object):
         if function <= 0 or function > 7:
             print("!! Invalid function")
             return False
-        
+
         self.gpib.cmdWrite("F" + str(function), self.addr)
 
         if not noUpdate:
             self.getStatus()
             if self.status.function != function:
-                print("!! Set failed. Tried to set " + self.getFunction(function) + " but device returned " + self.getFunction(self.status.function))
+                print("!! Set failed. Tried to set " + self.getFunction(
+                    function) + " but device returned " + self.getFunction(self.status.function))
                 return False
             elif self.gpib.debug:
                 print(".. Changed to function " + self.getFunction(function))
         elif self.gpib.debug:
             print(".. Probably changed to function " + self.getFunction(function))
-        
+
         return True
 
-    def setRange(self, range : str, noUpdate : bool=False) -> bool:
+    def setRange(self, range: str, noUpdate: bool = False) -> bool:
         """Change current measurement range
 
         Parameters
@@ -694,43 +702,43 @@ class hp3478a(object):
         """
         newRange = None
         newRangeF = None
-        if range == "30m"       or range == 0.03:
-            newRange  = -2
+        if range == "30m" or range == 0.03:
+            newRange = -2
             newRangeF = 0.03
-        elif range == "300m"    or range == 0.3:
-            newRange  = -1
+        elif range == "300m" or range == 0.3:
+            newRange = -1
             newRangeF = 0.3
-        elif range == "3"       or range == 3:
-            newRange  = 0
+        elif range == "3" or range == 3:
+            newRange = 0
             newRangeF = 3
-        elif range == "30"      or range == 30:
-            newRange  = 1
+        elif range == "30" or range == 30:
+            newRange = 1
             newRangeF = 30
-        elif range == "300"     or range == 300:
-            newRange  = 2
+        elif range == "300" or range == 300:
+            newRange = 2
             newRangeF = 300
-        elif range == "3k"      or range == 3000:
-            newRange  = 3
+        elif range == "3k" or range == 3000:
+            newRange = 3
             newRangeF = 3000
-        elif range == "30k"     or range == 30000:
-            newRange  = 4
+        elif range == "30k" or range == 30000:
+            newRange = 4
             newRangeF = 30000
-        elif range == "300k"    or range == 300000:
-            newRange  = 5
+        elif range == "300k" or range == 300000:
+            newRange = 5
             newRangeF = 300000
-        elif range == "3M"      or range == 3000000:
-            newRange  = 6
+        elif range == "3M" or range == 3000000:
+            newRange = 6
             newRangeF = 3000000
-        elif range == "30M"     or range == 30000000:
-            newRange  = 7
+        elif range == "30M" or range == 30000000:
+            newRange = 7
             newRangeF = 30000000
         elif range.lower() == "a" or range.lower() == "auto":
             newRange = "A"
-        
+
         if newRange is None:
             print("!! Invalid range")
             return False
-        
+
         self.gpib.cmdWrite("R" + str(newRange), self.addr)
 
         if not noUpdate:
@@ -750,10 +758,10 @@ class hp3478a(object):
                     print(".. Set range to " + self.getRange())
         elif self.gpib.debug:
             print(".. Probably changed to range " + str(range))
-        
+
         return True
 
-    def setDigits(self, digits : float, noUpdate : bool=False) -> bool:
+    def setDigits(self, digits: float, noUpdate: bool = False) -> bool:
         """Change current measurement resolution
 
         Parameters
@@ -781,21 +789,22 @@ class hp3478a(object):
             print("!! Invalid digits")
             return False
 
-        self.gpib.cmdWrite("N"+newDigits, self.addr)
+        self.gpib.cmdWrite("N" + newDigits, self.addr)
 
         if not noUpdate:
             self.getStatus()
             if int(self.getDigits()) != int(newDigits):
-                print("!! Tried to set digits to " + str(int(newDigits)) + "½ but device reported " + str(int(self.getDigits())) + "½")
+                print("!! Tried to set digits to " + str(int(newDigits)) + "½ but device reported " + str(
+                    int(self.getDigits())) + "½")
                 return False
             elif self.gpib.debug:
                 print(".. Set digits to " + str(int(self.getDigits())) + "½")
         elif self.gpib.debug:
             print(".. Probably changed digits to " + str(int(self.getDigits())) + "½")
-        
+
         return True
 
-    def setTrigger(self, trigger : int, noUpdate : bool=False) -> bool:
+    def setTrigger(self, trigger: int, noUpdate: bool = False) -> bool:
         """Change current measurement trigger
 
         Parameters
@@ -837,13 +846,13 @@ class hp3478a(object):
             elif trigger == self.TRIG_HLD and self.status.triggerInternal:
                 print("!! Tried to enable trigger hold but auto trigger flag is still active")
                 return False
-        
+
         if self.gpib.debug:
             print(".. Probably changed trigger to " + str(trigger))
-        
+
         return True
 
-    def setSRQ(self, srq:int):
+    def setSRQ(self, srq: int):
         """Set Serial Poll Register Mask
 
         @TODO Not tested and no validations

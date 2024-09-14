@@ -1,11 +1,9 @@
-
-from hp3478a import hp3478a
+from pm2534 import pm2534
 from time import sleep
 
 port = "COM11"
 
-test = hp3478a(23, port, debug=False)
-
+test = pm2534(23, port, debug=True)
 #test.callReset()
 """
 test.setDisplay("ADLERWEB.INFO")
