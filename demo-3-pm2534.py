@@ -5,6 +5,7 @@ port = "COM11"
 
 test = pm2534(23, port, debug=True)
 #test.callReset()
+#just a line added
 """
 test.setDisplay("ADLERWEB.INFO")
 print(test.getStatus())
