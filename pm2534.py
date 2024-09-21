@@ -43,6 +43,12 @@ class pm2534(object):
         E = 3
         K = 4
 
+    class Speeds(Enum):
+        Speed1 = 1
+        Speed2 = 2
+        Speed3 = 3
+        Speed4 = 4
+
 
     #functions = ['VDC', 'VAC', 'RTW', 'RFW', 'IDC', 'IAC', 'TDC']
 
@@ -156,7 +162,7 @@ class pm2534(object):
 
     status = pm2534Status()
 
-    def __init__(self, addr: int, port: str = None, baud: int = 115200, timeout: float = 0.25,
+    def __init__(self, addr: int, port: str = None, baud: int = 115200, timeout: float = 0.5,
                  prologixGpib: prologix = None, debug: bool = False):
         """
 
@@ -209,6 +215,7 @@ class pm2534(object):
         measurement = self.gpib.cmdPoll(" ", self.addr)
 
         if measurement is None:
+            #self.gpib.cmdClr()
             return None
 
         return float(measurement[6:])
@@ -287,122 +294,7 @@ class pm2534(object):
         str|float|None
             Maximum measurement value in current range
         """
-        if range is None:
-            range = self.status.range
-        if function is None:
-            function = self.status.function
-
-        if range == 1:
-            if function == 1:
-                if numeric:
-                    return 0.03
-                else:
-                    return "30mV"
-            elif function == 2:
-                if numeric:
-                    return 0.3
-                else:
-                    return "300mV"
-            elif function == 3 or function == 4:
-                if numeric:
-                    return 30.0
-                else:
-                    return "30Ω"
-            elif function == 5 or function == 6:
-                if numeric:
-                    return 0.3
-                else:
-                    return "300mA"
-            else:
-                return None
-        elif range == 2:
-            if function == 1:
-                if numeric:
-                    return 0.3
-                else:
-                    return "300mV"
-            elif function == 2:
-                if numeric:
-                    return 3.0
-                else:
-                    return "3V"
-            elif function == 3 or function == 4:
-                if numeric:
-                    return 300.0
-                else:
-                    return "300Ω"
-            elif function == 5 or function == 6:
-                if numeric:
-                    return 3.0
-                else:
-                    return "3A"
-            else:
-                return None
-        elif range == 3:
-            if function == 1:
-                if numeric:
-                    return 3.0
-                else:
-                    return "3V"
-            elif function == 2:
-                if numeric:
-                    return 30.0
-                else:
-                    return "30V"
-            elif function == 3 or function == 4:
-                if numeric:
-                    return 3000.0
-                else:
-                    return "3kΩ"
-            else:
-                return None
-        elif range == 4:
-            if function == 1:
-                if numeric:
-                    return 30.0
-                else:
-                    return "30V"
-            elif function == 2:
-                if numeric:
-                    return 300.0
-                else:
-                    return "300V"
-            elif function == 3 or function == 4:
-                if numeric:
-                    return 30000.0
-                else:
-                    return "30kΩ"
-            else:
-                return None
-        elif range == 5:
-            if function == 1:
-                if numeric:
-                    return 300.0
-                else:
-                    return "300V"
-            elif function == 3 or function == 4:
-                if numeric:
-                    return 300000.0
-                else:
-                    return "300kΩ"
-            else:
-                return None
-        elif range == 6:
-            if function == 3 or function == 4:
-                if numeric:
-                    return 3000000.0
-                else:
-                    return "3MΩ"
-            else:
-                return None
-        elif range == 7:
-            if function == 3 or function == 4:
-                if numeric:
-                    return 30000000.0
-                else:
-                    return "30MΩ"
-            else:
-                return None
+        raise Exception("Function not implemented yet!")
 
     def getStatus(self) -> pm2534Status:
         """Read current device status and populate status object
@@ -691,6 +583,12 @@ class pm2534(object):
         """
         if trigger in self.Triggers:
             self.gpib.cmdWrite("TRG " + str(trigger.name), self.addr)
+            return True
+        return False
+
+    def setSpeed(self, speed:Speeds, noUpdate: bool = False) -> bool:
+        if speed in self.Speeds:
+            self.gpib.cmdWrite("MSP " + str(speed.value), self.addr)
             return True
         return False
 
