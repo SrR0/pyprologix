@@ -27,6 +27,10 @@ Most functions are supported. Additionally you can read calibration SRAM data to
 
 Not yet implemented, WIP
 
+### Siglent SDM3065x
+
+Communicates over Network
+
 ### IEEE488.2/SCPI standard
 
 Not yet implemented
