@@ -1,6 +1,6 @@
 import sdm3065x
 
-dmm = siglent_sdm3065x.SDM3065X('10.0.0.114')
+dmm = sdm3065x.SDM3065X('10.0.0.114')
 dmm.reset()
 
 # setup:

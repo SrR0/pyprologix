@@ -1,7 +1,13 @@
+from numpy.core.numeric import True_
+from numpy.f2py.auxfuncs import throw_error
+
 from prologix import prologix
 from dataclasses import dataclass
 from time import sleep
+from enum import Enum
 import datetime
+
+
 
 
 class pm2534(object):
@@ -21,13 +27,26 @@ class pm2534(object):
     addr: int = None
     gpib: prologix = None
 
- #   VDC = 1
- #   VAC = 2
- #   Ω2W = 3
- #   Ω4W = 4
- #   ADC = 5
- #   AAC = 6
- #   EXTΩ = 7
+    class Functions(Enum):
+        VDC = 1
+        VAC = 2
+        RTW = 3
+        RFW = 4
+        IDC = 5
+        IAC = 6
+        TDC = 7
+
+
+    class Triggers(Enum):
+        I = 1
+        B = 2
+        E = 3
+        K = 4
+
+
+    #functions = ['VDC', 'VAC', 'RTW', 'RFW', 'IDC', 'IAC', 'TDC']
+
+
 
  #   TRIG_INT = 1
  #   TRIG_EXT = 2
@@ -39,18 +58,6 @@ class pm2534(object):
     class pm2534Status:
         """Current device status
 
-        Attributes
-        ----------
-        function : int
-            numeric representation of currently used measurement function:
-            1: DC Voltage
-            2: AC Voltage
-            3: 2-Wire Resistance
-            4: 4-Wire Resistance
-            5: DC Current
-            6: AC Current
-            7: Extended Ohms
-            see also: getFunction
         range : int
             numeric representation of currenly used measurement range:
             1: 30mV DC, 300mV AC, 30Ω, 300mA, Extended Ohms
@@ -119,7 +126,7 @@ class pm2534(object):
         fetched: datetime
             Date and time this status was updated
         """
-        """
+
 
         function: int = None
         range: int = None
@@ -145,7 +152,7 @@ class pm2534(object):
         errChecksum: bool = None
         dac: int = None
         fetched: datetime = None
-    """
+
 
     status = pm2534Status()
 
@@ -204,7 +211,7 @@ class pm2534(object):
         if measurement is None:
             return None
 
-        return float(measurement)
+        return float(measurement[6:])
 
     def getDigits(self, digits: int = None) -> float:
         """Get a human readable representation of currently used resolution
@@ -218,19 +225,9 @@ class pm2534(object):
 
         Returns
         -------
-        str|None
-            3.5, 4.5 or 5.5 for the current resolution
-            None for invalid numbers
         """
-        if digits is None:
-            digits = self.status.digits
+        status = self.gpib.cmdPoll("DIG ?", self.addr, binary=True)
 
-        if digits == 1:
-            return 5.5
-        elif digits == 2:
-            return 4.5
-        elif digits == 3:
-            return 3.5
         return None
 
     def getFunction(self, function: int = None) -> str:
@@ -245,15 +242,7 @@ class pm2534(object):
 
         Returns
         -------
-        str|None
-            VDC for DC Volts
-            ADC for AC Volts
-            Ω2W for 2-Wire Resistance
-            Ω4W for 4-Wire Resistance
-            ADC for DC Current
-            AAC for AC Current
-            ExtΩ for extended Ohms
-            None for invalid numbers
+        Functions
 
         """
         if function is None:
@@ -264,15 +253,15 @@ class pm2534(object):
         elif function == 2:
             return "VAC"
         elif function == 3:
-            return "Ω2W"
+            return "RTW"
         elif function == 4:
-            return "Ω4W"
+            return "RFW"
         elif function == 5:
-            return "ADC"
+            return "IDC"
         elif function == 6:
-            return "AAC"
+            return "IAC"
         elif function == 7:
-            return "ExtΩ"
+            return "TDC"
         else:
             return None
 
@@ -562,24 +551,7 @@ class pm2534(object):
         bool
             new status of autoZero; presumed status if `noUpdate` was True
         """
-        setVal = 0
-        if autoZero: setVal = 1
-
-        self.gpib.cmdWrite("Z" + str(autoZero), self.addr)
-
-        if noUpdate:
-            if self.gpib.debug:
-                print(".. AutoZero changed to " + setVal + " without verification.")
-            return setVal
-        else:
-            self.getStatus()
-            if autoZero != self.status.autoZero:
-                print(
-                    "!! Error while changing AutoZero - tried to set " + str(autoZero) + " but verification was " + str(
-                        self.status.autoZero))
-            elif self.gpib.debug:
-                print(".. AutoZero successfully changed to " + str(self.status.autoZero))
-            return self.status.autoZero
+        raise Exception("Function not implemented yet!")
 
     def setDisplay(self, text: str = None, online: bool = True) -> bool:
         """Change device display
@@ -609,40 +581,9 @@ class pm2534(object):
         bool
             Wheather setting the text worked as expected
         """
-        if text is None or text == "":
-            # Reset display
-            self.gpib.cmdWrite("D1", self.addr)
-            if self.gpib.debug:
-                print("Display reset to standard mode")
-            return True
+        raise Exception("Function not implemented yet!")
 
-        len = 0
-        for c in text:
-            if ord(c) < 32 or ord(c) > 95:
-                print("!! Character '" + c + "' is not supported")
-                return False
-            if c != "," and c != ".":
-                len = len + 1
-
-            if len > 12:
-                print("!! Text too long; max 12 characters")
-                return False
-
-        cmd = "D2"
-        dt = ""
-        if not online:
-            cmd = "D3"
-            dt = " (updates paused)"
-
-        self.gpib.cmdWrite(cmd + text, self.addr)
-
-        if self.gpib.debug:
-            print(".. Display changed to '" + text + "'" + dt)
-
-        # @TODO we could check status/errors to catch syntax errors here
-        return True
-
-    def setFunction(self, function: int, noUpdate: bool = False) -> bool:
+    def setFunction(self, function: Functions, noUpdate: bool = False) -> bool:
         """Change current measurement function
 
         Parameters
@@ -660,110 +601,58 @@ class pm2534(object):
         bool
             Whether update succeeded or not; not verified if `noUpdate` was True
         """
-        if function <= 0 or function > 7:
-            print("!! Invalid function")
-            return False
+        if function in self.Functions:
+            self.gpib.cmdWrite("FNC " + str(function.name), self.addr)
+            """
+                if not noUpdate:
+                    self.getStatus()
+                    if self.status.function != function:
+                        print("!! Set failed. Tried to set " + self.getFunction(
+                            function) + " but device returned " + self.getFunction(self.status.function))
+                        return False
+                    elif self.gpib.debug:
+                        print(".. Changed to function " + self.getFunction(function))
+                elif self.gpib.debug:
+                    print(".. Probably changed to function " + self.getFunction(function))
+        """
+            return True
 
-        self.gpib.cmdWrite("F" + str(function), self.addr)
+        print("!! Invalid function")
+        return False
 
-        if not noUpdate:
-            self.getStatus()
-            if self.status.function != function:
-                print("!! Set failed. Tried to set " + self.getFunction(
-                    function) + " but device returned " + self.getFunction(self.status.function))
-                return False
-            elif self.gpib.debug:
-                print(".. Changed to function " + self.getFunction(function))
-        elif self.gpib.debug:
-            print(".. Probably changed to function " + self.getFunction(function))
-
-        return True
-
-    def setRange(self, range: str, noUpdate: bool = False) -> bool:
+    def setRange(self, range, noUpdate: bool = False) -> bool:
         """Change current measurement range
-
-        Parameters
-        ----------
         range : str|float
             Range as SI-Value or float
             Valid values:
-            A or AUTO to enable Auto-Range
-            30m,300m,3,30,300,3k,30k,300k,3M,30M
-            0.03,0.3,3,30,300,3000,30000,300000,3000000,30000000
+            AUTO to enable Auto-Range
+
             Not all ranges can be used in all measurement functions
+            VDC: 300E-3,3E0,30E0,300E0
+            VAC: 300E-3,3E0,30E0,300E0
+            RTW: 3E3,30E3,300E3,3E6,30E6,300E6
+            RFW: 3E3,30E3,300E3,3E6
+            IDC: 30E-3, 3E0
+            IAC: 30E-3, 3E0
+            TDC: 0
         noUpdate : bool, optional
             If True do not update status object to verify change was successful
             by default False
-
         Returns
         -------
         bool
             Whether update succeeded or not; not verified if `noUpdate` was True
         """
-        newRange = None
-        newRangeF = None
-        if range == "30m" or range == 0.03:
-            newRange = -2
-            newRangeF = 0.03
-        elif range == "300m" or range == 0.3:
-            newRange = -1
-            newRangeF = 0.3
-        elif range == "3" or range == 3:
-            newRange = 0
-            newRangeF = 3
-        elif range == "30" or range == 30:
-            newRange = 1
-            newRangeF = 30
-        elif range == "300" or range == 300:
-            newRange = 2
-            newRangeF = 300
-        elif range == "3k" or range == 3000:
-            newRange = 3
-            newRangeF = 3000
-        elif range == "30k" or range == 30000:
-            newRange = 4
-            newRangeF = 30000
-        elif range == "300k" or range == 300000:
-            newRange = 5
-            newRangeF = 300000
-        elif range == "3M" or range == 3000000:
-            newRange = 6
-            newRangeF = 3000000
-        elif range == "30M" or range == 30000000:
-            newRange = 7
-            newRangeF = 30000000
-        elif range.lower() == "a" or range.lower() == "auto":
-            newRange = "A"
+        if range=='AUTO':
+            self.gpib.cmdWrite("RNG " + range, self.addr)
+            return True
+        else:
+            self.gpib.cmdWrite('RNG {:1.3E}'.format(range))
+            return True
+        return False
 
-        if newRange is None:
-            print("!! Invalid range")
-            return False
-
-        self.gpib.cmdWrite("R" + str(newRange), self.addr)
-
-        if not noUpdate:
-            self.getStatus()
-            if newRange == "A":
-                if not self.status.autoRange:
-                    print("!! Tried to enable Auto-Range but device refused")
-                    return False
-                elif self.gpib.debug:
-                    print(".. Enabled Auto-Range")
-            else:
-                newRangeC = self.getRange(numeric=True)
-                if newRangeF != newRangeC:
-                    print("!! Tried to set range to " + str(range) + " but device reported " + self.getRange())
-                    return False
-                elif self.gpib.debug:
-                    print(".. Set range to " + self.getRange())
-        elif self.gpib.debug:
-            print(".. Probably changed to range " + str(range))
-
-        return True
-
-    def setDigits(self, digits: float, noUpdate: bool = False) -> bool:
+    def setDigits(self, digits: int, noUpdate: bool = False) -> bool:
         """Change current measurement resolution
-
         Parameters
         ----------
         digits : float
@@ -778,44 +667,18 @@ class pm2534(object):
         bool
             Whether update succeeded or not; not verified if `noUpdate` was True
         """
-        newDigits = None
-        if digits == 3 or digits == 3.5:
-            newDigits = "3"
-        elif digits == 4 or digits == 4.5:
-            newDigits = "4"
-        elif digits == 5 or digits == 5.5:
-            newDigits = "5"
-        else:
-            print("!! Invalid digits")
-            return False
+        if digits in range(1,7):
+            self.gpib.cmdWrite("DIG " + str(digits), self.addr)
+            return True
+        return False
 
-        self.gpib.cmdWrite("N" + newDigits, self.addr)
-
-        if not noUpdate:
-            self.getStatus()
-            if int(self.getDigits()) != int(newDigits):
-                print("!! Tried to set digits to " + str(int(newDigits)) + "½ but device reported " + str(
-                    int(self.getDigits())) + "½")
-                return False
-            elif self.gpib.debug:
-                print(".. Set digits to " + str(int(self.getDigits())) + "½")
-        elif self.gpib.debug:
-            print(".. Probably changed digits to " + str(int(self.getDigits())) + "½")
-
-        return True
-
-    def setTrigger(self, trigger: int, noUpdate: bool = False) -> bool:
+    def setTrigger(self, trigger: Triggers, noUpdate: bool = False) -> bool:
         """Change current measurement trigger
 
         Parameters
         ----------
-        trigger : int
-            desired trigger mode
-            1 or TRIG_INT -> Automatic internal trigger
-            2 or TRIG_EXT -> Abort current measurements; Start on LOW-edge or via GPIB
-            3 or TRIG_SIN -> Complete current measurement. New one on GPIB GET
-            4 or TRIG_HLD -> Abort current measurement. New one on GPIB GET
-            5 or TRIG_FST -> Same as TRIG_SIN but skip settling delay for AC
+        trigger : Triggers
+            different kinds of Trigger
 
         noUpdate : bool, optional
             If True do not update status object to verify change was successful
@@ -826,31 +689,10 @@ class pm2534(object):
         bool
             Whether update succeeded or not; not verified if `noUpdate` was True
         """
-        if trigger <= 0 or trigger > 5:
-            print("!! Invalid digits")
-            return False
-
-        self.gpib.cmdWrite("T" + str(trigger), self.addr)
-
-        if not noUpdate:
-            self.getStatus()
-            if trigger == self.TRIG_EXT and not self.status.triggerExternal:
-                print("!! Tried to enable external trigger but flag did not update")
-                return False
-            elif trigger == self.TRIG_SIN and self.status.triggerInternal:
-                print("!! Tried to enable singe trigger but auto trigger flag is still active")
-                return False
-            elif trigger == self.TRIG_INT and not self.status.triggerInternal:
-                print("!! Tried to enable internal trigger but auto trigger flag is not active")
-                return False
-            elif trigger == self.TRIG_HLD and self.status.triggerInternal:
-                print("!! Tried to enable trigger hold but auto trigger flag is still active")
-                return False
-
-        if self.gpib.debug:
-            print(".. Probably changed trigger to " + str(trigger))
-
-        return True
+        if trigger in self.Triggers:
+            self.gpib.cmdWrite("TRG " + str(trigger.name), self.addr)
+            return True
+        return False
 
     def setSRQ(self, srq: int):
         """Set Serial Poll Register Mask
@@ -863,12 +705,12 @@ class pm2534(object):
             Parameter must be two digits exactly. Bits 0-5 of the binary representation
             are used to set the mask
         """
-        self.gpib.cmdWrite(srq, self.addr)
+        raise Exception("Function not implemented yet!")
 
     def clearSPR(self):
         """Clear Serial Poll Register (SPR)
         """
-        self.gpib.cmdWrite("K", self.addr)
+        raise Exception("Function not implemented yet!")
 
     def clearERR(self) -> bytearray:
         """Clear Error Registers
@@ -878,7 +720,7 @@ class pm2534(object):
         bytearray
             Error register as octal digits
         """
-        return self.gpib.cmdPoll("E", self.addr, binary=True)
+        raise Exception("Function not implemented yet!")
 
     def callReset(self):
         """Reset the device

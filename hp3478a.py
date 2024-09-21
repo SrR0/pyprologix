@@ -26,7 +26,7 @@ class hp3478a(object):
     Ω4W  = 4
     ADC  = 5
     AAC  = 6
-    EXTΩ = 7
+    TEM  = 7
 
     TRIG_INT = 1
     TRIG_EXT = 2
